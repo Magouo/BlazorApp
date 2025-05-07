@@ -1,0 +1,82 @@
+﻿@page "/movies/details/{id:int}"
+@rendermode InteractiveServer
+@using BlazorApp2.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext _context
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+
+@if (movie != null)
+{
+    <h3>@movie.Title</h3>
+    <p>@movie.Description</p>
+    <p>Data premiery: @movie.ReleaseDate?.ToShortDateString()</p>
+    <p>Średnia ocena: @movie.Rate</p>
+    <p>Liczba ocen: @movie.RateCount</p>
+    @if (!string.IsNullOrEmpty(movie.ImageUrl))
+    {
+        <img src="@movie.ImageUrl" style="max-width:200px;" />
+    }
+
+    <AuthorizeView>
+        <Authorized Context="authContext">
+            <EditForm Model="newComment" OnValidSubmit="AddComment" FormName="AddCommentForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <InputTextArea @bind-Value="newComment.Comment" placeholder="Komentarz" />
+                <InputNumber @bind-Value="newComment.Rate" min="1" max="10" />
+                <button type="submit">Dodaj ocenę i komentarz</button>
+            </EditForm>
+        </Authorized>
+        <NotAuthorized>
+            <div>
+                <em>Zaloguj się, aby dodać ocenę i komentarz.</em>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
+
+
+    <h4>Komentarze:</h4>
+    @foreach (var comment in comments)
+    {
+        <div>
+            <b>@comment.UserId</b>: @comment.Comment (@comment.Rate)
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private Movie? movie;
+    private List<MovieComment> comments = new();
+    private MovieComment newComment = new();
+    private bool isOwner = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        movie = await _context.Movies.FindAsync(id);
+        comments = await _context.MovieComments.Where(c => c.MovieId == id).ToListAsync();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isOwner = movie?.UserId == user.Identity?.Name;
+    }
+
+    private async Task AddComment()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        newComment.UserId = user.Identity?.Name;
+        newComment.MovieId = id;
+        _context.MovieComments.Add(newComment);
+
+        // Przelicz średnią ocenę
+        movie.Rate = ((movie.Rate ?? 0) * movie.RateCount + (newComment.Rate ?? 0)) / (movie.RateCount + 1);
+        movie.RateCount++;
+
+        await _context.SaveChangesAsync();
+        comments = await _context.MovieComments.Where(c => c.MovieId == id).ToListAsync();
+        newComment = new MovieComment();
+    }
+}

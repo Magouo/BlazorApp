@@ -1,0 +1,98 @@
+﻿@page "/movies"
+@rendermode InteractiveServer
+@using BlazorApp2.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext _context
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+
+<h3>Filmy</h3>
+<a href="/movies/create">Dodaj nowy film</a>
+
+<div style="margin: 10px 0;">
+    <button class="btn btn-primary" @onclick="() => SortByRating()">Sortuj wg oceny</button>
+    <button class="btn btn-primary" style="margin-left: 10px;" @onclick="() => SortByDate()">Sortuj wg daty</button>
+</div>
+
+@if (movies.Count == 0)
+{
+    <p>Ładowanie filmów...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Tytuł</th>
+                <th>Data premiery</th>
+                <th>Ocena</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var movie in movies)
+            {
+                <tr>
+                    <td>@movie.Title</td>
+                    <td>@movie.ReleaseDate?.ToShortDateString()</td>
+                    <td>@movie.Rate</td>
+                    <td>
+                        <a href="/movies/details/@movie.Id">Szczegóły</a>
+                        @if (!string.IsNullOrEmpty(userName) && movie.UserId == userName)
+                        {
+                            <span>
+                                | <a href="/movies/edit/@movie.Id">Edytuj</a>
+                                | <a href="/movies/delete/@movie.Id">Usuń</a>
+                            </span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<div style="margin-top: 40px;">
+    <h4>Mapa Google – Wroclaw</h4>
+    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2442.168012073019!2d17.03333031580098!3d51.10788597956213!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x470fc27e5c2c7e2b%3A0x40c0b7b12c0b7b0!2sWroc%C5%82aw!5e0!3m2!1spl!2spl!4v1680000000000!5m2!1spl!2spl" width="400"
+            height="300"
+            style="border:0;"
+            allowfullscreen=""
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade">
+    </iframe>
+</div>
+
+@code {
+    private List<Movie> movies = new();
+    private string? userName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMovies();
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userName = user.Identity?.Name;
+    }
+
+    private async Task LoadMovies()
+    {
+        movies = await _context.Movies.ToListAsync();
+        Console.WriteLine($"Załadowano {movies.Count} filmów");
+    }
+
+    private void SortByRating()
+    {
+        Console.WriteLine("Sortowanie po ocenie");
+        movies = movies.OrderByDescending(m => m.Rate).ToList();
+        StateHasChanged();
+    }
+
+    private void SortByDate()
+    {
+        Console.WriteLine("Sortowanie po dacie");
+        movies = movies.OrderByDescending(m => m.ReleaseDate).ToList();
+        StateHasChanged();
+    }
+}

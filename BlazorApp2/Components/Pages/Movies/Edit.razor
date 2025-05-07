@@ -1,0 +1,52 @@
+﻿@page "/movies/edit/{id:int}"
+@rendermode InteractiveServer
+@using BlazorApp2.Data
+@inject ApplicationDbContext _context
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<h3>Edytuj film</h3>
+
+@if (movie == null)
+{
+    <p>Ładowanie...</p>
+}
+else if (!isOwner)
+{
+    <p>Nie masz uprawnień do edycji tego filmu.</p>
+}
+else
+{
+    <EditForm Model="movie" OnValidSubmit="HandleValidSubmit" FormName="EditMovieForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <InputText @bind-Value="movie.Title" />
+        <InputTextArea @bind-Value="movie.Description" />
+        <InputDate @bind-Value="movie.ReleaseDate" />
+        <InputNumber @bind-Value="movie.Rate" />
+        <InputText @bind-Value="movie.ImageUrl" />
+        <button type="submit">Zapisz</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private Movie? movie;
+    private bool isOwner = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        movie = await _context.Movies.FindAsync(id);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isOwner = movie?.UserId == user.Identity?.Name;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        await _context.SaveChangesAsync();
+        Navigation.NavigateTo("/movies");
+    }
+}

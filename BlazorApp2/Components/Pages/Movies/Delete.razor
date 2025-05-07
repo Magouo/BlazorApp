@@ -1,0 +1,47 @@
+﻿@page "/movies/delete/{id:int}"
+@rendermode InteractiveServer
+@using BlazorApp2.Data
+@inject ApplicationDbContext _context
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+@if (movie == null)
+{
+    <p>Ładowanie...</p>
+}
+else if (!isOwner)
+{
+    <p>Nie masz uprawnień do usunięcia tego filmu.</p>
+}
+else
+{
+    <h3>Czy na pewno chcesz usunąć film "@movie.Title"?</h3>
+    <button @onclick="DeleteMovie">Usuń</button>
+    <button @onclick='() => Navigation.NavigateTo("/movies")'>Anuluj</button>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private Movie? movie;
+    private bool isOwner = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        movie = await _context.Movies.FindAsync(id);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        isOwner = movie?.UserId == user.Identity?.Name;
+    }
+
+    private async Task DeleteMovie()
+    {
+        if (movie != null)
+        {
+            _context.Movies.Remove(movie);
+            await _context.SaveChangesAsync();
+            Navigation.NavigateTo("/movies");
+        }
+    }
+}

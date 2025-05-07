@@ -1,0 +1,35 @@
+﻿@page "/movies/create"
+@rendermode InteractiveServer
+@using BlazorApp2.Data
+@inject ApplicationDbContext _context
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<h3>Dodaj film</h3>
+
+<EditForm Model="movie" OnValidSubmit="HandleValidSubmit" FormName="CreateMovieForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <InputText @bind-Value="movie.Title" placeholder="Tytuł" />
+    <InputTextArea @bind-Value="movie.Description" placeholder="Opis" />
+    <InputDate @bind-Value="movie.ReleaseDate" />
+    <InputNumber @bind-Value="movie.Rate" />
+    <InputText @bind-Value="movie.ImageUrl" placeholder="URL obrazka" />
+    <button type="submit">Dodaj</button>
+</EditForm>
+
+@code {
+    private Movie movie = new();
+
+    private async Task HandleValidSubmit()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        movie.UserId = user.Identity?.Name;
+        _context.Movies.Add(movie);
+        await _context.SaveChangesAsync();
+        Navigation.NavigateTo("/movies");
+    }
+}
